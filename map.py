@@ -1,6 +1,12 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+from dash import Dash, dcc, html, Input, Output
 from mpl_toolkits.basemap import Basemap
+import io
+import base64
+import numpy as nppip
 
 # Load dataset
 file_path = "E:\Learn\OSU\DataIO\ev_stations_v1.csv"
@@ -164,4 +170,81 @@ ax_main.set_title("EV Charging Stations in the USA with Standardized Alaska & Ha
 
 # Show the final map
 plt.show()
+
+
+
+# Convert static map to image
+#buf = io.BytesIO()
+#plt.savefig(buf, format='png')
+#buf.seek(0)
+#encoded_image = base64.b64encode(buf.read()).decode()
+#static_map_html = f'data:image/png;base64,{encoded_image}'
+#plt.close()
+
+# Aggregate charging station count per region
+#df_region = df_clean.groupby(["State", "Latitude", "Longitude"]).size().reset_index(name="Count")
+
+# Initialize Dash app
+#app = Dash(__name__)
+#app.layout = html.Div([
+#    html.Img(id='static-map', src=static_map_html, style={'width': '100%'}),
+#    dcc.Graph(id='ev-map', style={'display': 'none'}),
+#    html.P("Hover over a state to rotate the map and visualize station distribution dynamically."),
+#    dcc.Slider(
+#        id='rotation-slider',
+#        min=0, max=360, step=5, value=0,
+#        marks={0: "0°", 90: "90°", 180: "180°", 270: "270°", 360: "360°"}
+#    )
+#])
+
+# Define initial interactive 3D bar map
+#fig_3d = go.Figure()
+#fig_3d.add_trace(go.Scattermapbox(
+#    lat=df_region["Latitude"],
+#    lon=df_region["Longitude"],
+#    marker=dict(size=5, color='blue'),
+#    hoverinfo='text',
+#    text=df_region["State"]
+#))
+
+#fig_3d.add_trace(go.Bar3d(
+#    x=df_region["Longitude"],
+#    y=df_region["Latitude"],
+#    z=df_region["Count"],
+#    marker=dict(color='blue', opacity=0.6),
+#    width=0.5
+#))
+
+#fig_3d.update_layout(
+#    scene=dict(
+#        xaxis_title='Longitude',
+#        yaxis_title='Latitude',
+#       zaxis_title='Charging Stations',
+#        camera=dict(eye=dict(x=1.5, y=1.5, z=1))
+#    ),
+#    mapbox_style="carto-positron",
+#    margin=dict(l=0, r=0, t=0, b=0)
+#)
+
+#@app.callback(
+#    [Output('ev-map', 'figure'), Output('ev-map', 'style'), Output('static-map', 'style')],
+#    [Input('ev-map', 'hoverData'), Input('rotation-slider', 'value')]
+#)
+#def update_map(hoverData, rotation_value):
+#    fig_3d.update_layout(
+#        scene=dict(
+#            camera=dict(eye=dict(x=np.cos(np.radians(rotation_value)), y=np.sin(np.radians(rotation_value)), z=1))
+#        )
+#    )
+    
+#    if hoverData and 'points' in hoverData:
+#        point = hoverData['points'][0]
+#        lat, lon = point['lat'], point['lon']
+#        return fig_3d, {'display': 'block'}, {'display': 'none'}
+    
+#    return fig_3d, {'display': 'none'}, {'display': 'block'}
+
+# Run Dash App
+#if __name__ == '__main__':
+#    app.run_server(debug=True)
 
