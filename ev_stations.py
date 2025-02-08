@@ -43,3 +43,21 @@ plt.title("Number of Stations by City")
 plt.grid(axis="y", linestyle="--", alpha=0.7)
 plt.xticks(rotation=90)
 plt.show()
+    
+# Draw US Map
+plt.figure(figsize=(12, 8))
+USMap = Basemap(projection="merc", llcrnrlat=24, urcrnrlat=50, llcrnrlon=-125, urcrnrlon=-66, resolution="l")
+USMap.drawcoastlines()
+USMap.drawcountries()
+USMap.drawstates()
+USMap.fillcontinents(color="#666666", lake_color="lightblue")
+USMap.drawmapboundary(fill_color="lightblue") # Map without Alaska and Hawaii :(
+    
+# OSU Scarlet Code: #BA0C2F
+
+# California Data
+# Groups with Access Code - State
+# Access Days Time
+# EV Level2 EVSE Num
+# EV Network vs. State
+# Owner Type Code
