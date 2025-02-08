@@ -189,3 +189,48 @@ plt.legend(title="Owner Type")
 plt.xticks(rotation=45)
 
 plt.show()
+
+# Open Data Trend Quarterly
+
+open_date_data = df[['Open Date']]
+open_date_data = open_date_data.dropna(subset=['Open Date'])
+open_date_data["Open Date"] = pd.to_datetime(df["Open Date"])
+open_date_data = open_date_data[open_date_data["Open Date"] < "2022-01-01"]
+
+open_date_data["Year-Quarter"] = open_date_data["Open Date"].dt.to_period("Q")
+quarter_counts = open_date_data["Year-Quarter"].value_counts().sort_index()
+
+plt.figure(figsize=(20, 6))
+plt.xlim(-0.5, len(quarter_counts) - 0.5)
+plt.plot(quarter_counts.index.astype(str), quarter_counts.values, marker="", linestyle="-")
+plt.xlabel("Year-Quarter")
+plt.ylabel("Number of New Stations")
+plt.title("Quarterly Trend of EV Charging Stations Openings")
+plt.xticks(rotation=45)
+plt.grid(True)
+
+plt.show()
+
+# Open Data Trend Yearly
+
+open_date_data = df[['Open Date']]
+open_date_data = open_date_data.dropna(subset=['Open Date'])
+open_date_data["Open Date"] = pd.to_datetime(df["Open Date"])
+open_date_data = open_date_data[open_date_data["Open Date"] < "2022-01-01"]
+
+open_date_data["Year"] = open_date_data["Open Date"].dt.to_period("Y")
+year_counts = open_date_data["Year"].value_counts().sort_index()
+
+plt.figure(figsize=(20, 6))
+plt.xlim(-0.5, len(year_counts) - 0.5)
+plt.ylim(0, max(year_counts.values) * 1.1)
+plt.plot(year_counts.index.astype(str), year_counts.values, marker="", linestyle="-")
+for i, value in enumerate(year_counts.values):
+    plt.text(i, value + max(year_counts.values) * 0.02, str(value), ha="center", fontsize=10, color="black")
+plt.xlabel("Year-Quarter")
+plt.ylabel("Number of New Stations")
+plt.title("Yearly Trend of EV Charging Stations Openings")
+plt.xticks(rotation=45)
+plt.grid(True)
+
+plt.show()
