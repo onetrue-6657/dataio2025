@@ -1,7 +1,17 @@
+'''
+This is a group project by team KFC for DataI/O 2025 hosted by Big Data Analysis Association at the Ohio State University.
+The challenge is the beginner track challenge, which provides a dataset of EV Charging Stations. 
+Team KFC:
+Zheng Ni
+Ken Ning
+Rocky Fang
+'''
+
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib
+import streamlit as st
 import matplotlib.pyplot as plt
 import wget
 import folium
@@ -9,11 +19,7 @@ from mpl_toolkits.basemap import Basemap
 
 df = pd.read_csv('ev_stations_v1.csv')
 
-selected_columns = ["Station Name", "Street Address", "City", "State", "ZIP", "Station Phone", "Groups With Access Code", 
-                    "Access Days Time", "EV Level2 EVSE Num", "EV Network", "Geocode Status", "Date Last Confirmed", 
-                    "ID", "Owner Type Code", "Open Date", "EV Connector Types", "Access Code", "Facility Type", "EV Pricing"]
-
-df = pd.DataFrame(columns=selected_columns)
+# Data Cleaning
 
 df2 = df[['City', 'State']] # State and City
 
@@ -25,6 +31,7 @@ lats = coordinates['Latitude'].tolist()
 lons = coordinates['Longitude'].tolist()
 
 # Bar plot of number of stations by state
+
 plt.figure(figsize=(12, 6))
 plt.bar(state.index, state.values)
 plt.xlabel("State")
@@ -35,6 +42,7 @@ plt.xticks(rotation=90)
 plt.show()
 
 # Bar plot of number of stations by city
+
 city_filtered = city[:30]
 plt.figure(figsize=(12, 6))
 plt.bar(city_filtered.index, city_filtered.values)
@@ -46,6 +54,7 @@ plt.xticks(rotation=90)
 plt.show()
     
 # Draw US Map
+
 plt.figure(figsize=(12, 8))
 USMap = Basemap(projection="merc", llcrnrlat=24, urcrnrlat=50, llcrnrlon=-125, urcrnrlon=-66, resolution="l")
 USMap.drawcoastlines()
@@ -53,10 +62,9 @@ USMap.drawcountries()
 USMap.drawstates()
 USMap.fillcontinents(color="#666666", lake_color="lightblue")
 USMap.drawmapboundary(fill_color="lightblue") # Map without Alaska and Hawaii :(
-    
-# OSU Scarlet Code: #BA0C2F
 
 # Show Facility Type Distribution Pie Chart
+
 facility_type = df['Facility Type'].value_counts()
 facility_type_labels = facility_type.index.to_list()
 facility_type_sizes = facility_type.values.tolist()
@@ -320,3 +328,331 @@ fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
 plt.show()
 
 # Data comes from https://afdc.energy.gov/data/10962
+
+# Station Level vs Build Year By Ken Ning
+
+df_open_date = df.dropna(subset=["Open Date"])
+df_open_date["Open Year"] = pd.to_datetime(df_open_date["Open Date"], errors="coerce").dt.year
+df_open_date = df_open_date[df_open_date["Open Year"] != 2022]
+
+df_open_year = df_open_date.groupby("Open Year")[
+    ["EV Level1 EVSE Num", "EV Level2 EVSE Num", "EV DC Fast Count"]
+].sum()
+
+plt.figure(figsize=(12, 6))
+plt.plot(df_open_year.index, df_open_year["EV Level1 EVSE Num"], marker="o", label="Level 1 Charging Stations", linestyle="-")
+plt.plot(df_open_year.index, df_open_year["EV Level2 EVSE Num"], marker="s", label="Level 2 Charging Stations", linestyle="-")
+plt.plot(df_open_year.index, df_open_year["EV DC Fast Count"], marker="^", label="DC Fast Charging Stations", linestyle="-")
+
+plt.xlabel("Year", fontsize=12)
+plt.ylabel("Number of Charging Stations", fontsize=12)
+plt.title("Growth of EV Charging Stations by Level Over Time (Excluding 2022)", fontsize=14)
+plt.legend()
+plt.grid(True, linestyle="--", alpha=0.6)
+
+plt.show()
+
+# Postal Code Search by Ken Ning
+
+df_filtered = df[['ZIP', 'City', 'State', 'Station Name', 'Street Address', 'EV Level1 EVSE Num', 'EV Level2 EVSE Num', 'EV DC Fast Count', 'EV Network']]
+df_filtered = df_filtered.dropna(subset=['ZIP'])
+df_filtered['ZIP'] = df_filtered['ZIP'].astype(str)
+
+unique_zips = df_filtered[['ZIP']].drop_duplicates()
+st.title("EV Charging Station Search")
+zip_code = st.text_input("Input your postal code (ZIP Code)", "")
+
+if zip_code:
+    location_info = df_filtered[df_filtered['ZIP'] == zip_code][['City', 'State']].drop_duplicates()
+    
+    if not location_info.empty:
+        city, state = location_info.iloc[0]
+        st.write(f"Postal code {zip_code} belongs to {city}, {state}。")
+        
+        stations = df_filtered[df_filtered['ZIP'] == zip_code]
+        
+        if not stations.empty:
+            st.write("The charging stations in this postal code are as follows:")
+            st.dataframe(stations)
+        else:
+            st.write("No charging station information found in this postal code.")
+            
+            zip_list = df_filtered[['ZIP']].drop_duplicates().values.flatten()
+            zip_tree = KDTree(zip_list.reshape(-1, 1).astype(float))
+            
+            try:
+                nearest_idx = zip_tree.query([[float(zip_code)]], k=5)[1][0]
+                nearby_zips = zip_list[nearest_idx]
+                nearby_stations = df_filtered[df_filtered['ZIP'].isin(nearby_zips)]
+                
+                if not nearby_stations.empty:
+                    st.write("The charging stations in the nearby area are as follows:")
+                    st.dataframe(nearby_stations)
+                else:
+                    st.write("No charging station information found in the nearby area.")
+            except:
+                st.write("An error occurred while searching for nearby postal codes.")
+    else:
+        st.write("Postal code not found.")
+
+# Map By Ken Ning
+
+charging_colors = {
+    "L1": "blue",
+    "L2": "green",
+    "DC": "red"
+}
+
+def get_charger_type(row):
+    if row["EV DC Fast Count"] > 0:
+        return "DC"
+    elif row["EV Level2 EVSE Num"] > 0:
+        return "L2"
+    elif row["EV Level1 EVSE Num"] > 0:
+        return "L1"
+    return None
+
+df["Charger Type"] = df.apply(get_charger_type, axis=1)
+
+df_filtered = df.dropna(subset=["Charger Type"])
+
+df_filtered["Marker"] = np.where(df_filtered["Groups With Access Code"] == "Private", "*", "o")
+
+fig = plt.figure(figsize=(14, 8))
+ax_main = fig.add_subplot(1, 1, 1)
+
+m_main = Basemap(projection="merc", llcrnrlat=24, urcrnrlat=50, llcrnrlon=-125, urcrnrlon=-66, resolution="l", ax=ax_main)
+m_main.drawcoastlines()
+m_main.drawcountries()
+m_main.drawstates()
+m_main.fillcontinents(color="lightgray", lake_color="lightblue")
+m_main.drawmapboundary(fill_color="lightblue")
+
+for charger_type, color in charging_colors.items():
+    df_subset = df_filtered[df_filtered["Charger Type"] == charger_type]
+    x, y = m_main(df_subset["Longitude"], df_subset["Latitude"])
+    for marker in ["o", "*"]:  # Public (o), Private (*)
+        df_marker = df_subset[df_subset["Marker"] == marker]
+        xm, ym = m_main(df_marker["Longitude"], df_marker["Latitude"])
+        m_main.scatter(xm, ym, s=10 if marker == "o" else 20, color=color, alpha=0.6, marker=marker, label=f"{charger_type} ({'Private' if marker == '*' else 'Public'})")
+
+ax_ak = plt.axes([0.02, 0.05, 0.2, 0.2])
+m_ak = Basemap(projection="merc", llcrnrlat=50, urcrnrlat=72, llcrnrlon=-170, urcrnrlon=-130, resolution="l", ax=ax_ak)
+m_ak.drawcoastlines()
+m_ak.drawcountries()
+m_ak.drawstates()
+m_ak.fillcontinents(color="lightgray", lake_color="lightblue")
+m_ak.drawmapboundary(fill_color="lightblue")
+
+df_ak = df_filtered[(df_filtered["Latitude"] > 50) & (df_filtered["Longitude"] < -130)]
+for charger_type, color in charging_colors.items():
+    df_subset = df_ak[df_ak["Charger Type"] == charger_type]
+    x, y = m_ak(df_subset["Longitude"], df_subset["Latitude"])
+    m_ak.scatter(x, y, s=5, color=color, alpha=0.6, marker="o")
+
+ax_hi = plt.axes([0.25, 0.05, 0.15, 0.15])
+m_hi = Basemap(projection="merc", llcrnrlat=18, urcrnrlat=22, llcrnrlon=-161, urcrnrlon=-154, resolution="l", ax=ax_hi)
+m_hi.drawcoastlines()
+m_hi.drawcountries()
+m_hi.drawstates()
+m_hi.fillcontinents(color="lightgray", lake_color="lightblue")
+m_hi.drawmapboundary(fill_color="lightblue")
+
+df_hi = df_filtered[(df_filtered["Latitude"] > 18) & (df_filtered["Latitude"] < 22) & (df_filtered["Longitude"] < -154)]
+for charger_type, color in charging_colors.items():
+    df_subset = df_hi[df_hi["Charger Type"] == charger_type]
+    x, y = m_hi(df_subset["Longitude"], df_subset["Latitude"])
+    m_hi.scatter(x, y, s=5, color=color, alpha=0.6, marker="o")
+
+ax_legend = plt.axes([0.72, 0.8, 0.2, 0.15])
+ax_legend.axis("off")
+legend_patches = [plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=color, markersize=8, label=f"{charger_type} Public") for charger_type, color in charging_colors.items()]
+legend_patches += [plt.Line2D([0], [0], marker="*", color="w", markerfacecolor=color, markersize=10, label=f"{charger_type} Private") for charger_type, color in charging_colors.items()]
+ax_legend.legend(handles=legend_patches, loc="center", fontsize=9, title="Charger Types")
+
+plt.suptitle("全美电动汽车充电站分布（区分充电级别 & 访问权限）", fontsize=14)
+plt.show()
+
+# Map By Rocky
+df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
+df_clean = df.dropna(subset=['Latitude', 'Longitude'])
+
+color_mapping = {
+    "Level 1": "red",
+    "Level 2": "blue",
+    "DC Fast": "green"
+}
+
+def classify_charger(row):
+    if row["EV DC Fast Count"] > 0:
+        return "DC Fast"
+    elif row["EV Level2 EVSE Num"] > 0:
+        return "Level 2"
+    elif row["EV Level1 EVSE Num"] > 0:
+        return "Level 1"
+    return "Unknown"
+
+df_clean["Charger Type"] = df_clean.apply(classify_charger, axis=1)
+df_clean["Access Type"] = df_clean["Groups With Access Code"].apply(lambda x: "Public" if x == "Public" else "Private")
+df_sampled = df_clean.sample(frac=0.1, random_state=42)
+state_labels = {
+    "AL": (32.8, -86.8), "AZ": (34.0, -111.0), "AR": (34.8, -92.2),
+    "CA": (37.2, -119.4), "CO": (39.0, -105.5), "CT": (41.6, -72.7), "DE": (39.0, -75.5),
+    "FL": (27.8, -81.6), "GA": (32.6, -83.4), "ID": (44.0, -114.0),
+    "IL": (40.0, -89.0), "IN": (39.8, -86.1), "IA": (42.0, -93.5), "KS": (38.5, -98.0),
+    "KY": (37.5, -85.0), "LA": (30.9, -91.1), "ME": (45.5, -69.0), "MD": (39.0, -76.7),
+    "MA": (42.3, -71.5), "MI": (44.3, -85.4), "MN": (46.4, -94.6), "MS": (32.7, -89.7),
+    "MO": (38.5, -92.5), "MT": (47.0, -110.0), "NE": (41.5, -99.7), "NV": (39.0, -116.5),
+    "NH": (43.8, -71.6), "NJ": (40.2, -74.7), "NM": (34.5, -106.0), "NY": (42.9, -75.6),
+    "NC": (35.5, -79.4), "ND": (47.5, -100.5), "OH": (40.3, -82.8), "OK": (35.6, -97.5),
+    "OR": (44.0, -120.5), "PA": (41.2, -77.2), "RI": (41.7, -71.5), "SC": (33.9, -81.2),
+    "SD": (44.5, -100.3), "TN": (35.9, -86.6), "TX": (31.5, -99.3), "UT": (39.4, -111.6),
+    "VT": (44.0, -72.7), "VA": (37.8, -78.2), "WA": (47.4, -120.7), "WV": (38.6, -80.5),
+    "WI": (44.6, -89.6), "WY": (43.0, -107.5)
+}
+
+fig, ax_main = plt.subplots(figsize=(12, 8))
+m_main = Basemap(
+    projection='merc',
+    llcrnrlat=20, urcrnrlat=50,
+    llcrnrlon=-125, urcrnrlon=-65,
+    resolution='l', ax=ax_main
+)
+
+m_main.drawcoastlines()
+m_main.drawcountries()
+m_main.drawstates()
+m_main.fillcontinents(color='lightgray', lake_color='white')
+
+df_sampled["x_main"], df_sampled["y_main"] = m_main(df_sampled["Longitude"].values, df_sampled["Latitude"].values)
+
+for charger, color in color_mapping.items():
+    subset_public = df_sampled[(df_sampled["Charger Type"] == charger) & (df_sampled["Access Type"] == "Public")]
+    subset_private = df_sampled[(df_sampled["Charger Type"] == charger) & (df_sampled["Access Type"] == "Private")]
+
+    ax_main.scatter(subset_public["x_main"], subset_public["y_main"], s=5, color=color, alpha=0.7, marker='o')
+    ax_main.scatter(subset_private["x_main"], subset_private["y_main"], s=10, color=color, alpha=0.7, marker='*')
+    
+for state, (lat, lon) in state_labels.items():
+    x, y = m_main(lon, lat)
+    ax_main.text(x, y, state, fontsize=10, fontweight='bold', ha='center', va='center', color='black')
+
+ax_alaska = fig.add_axes([0.104, 0.106, 0.22, 0.22])
+ax_hawaii = fig.add_axes([0.264, 0.106, 0.15,0.15])
+
+m_alaska = Basemap(
+    projection='merc',
+    llcrnrlat=50, urcrnrlat=72,
+    llcrnrlon=-170, urcrnrlon=-130,
+    resolution='l', ax=ax_alaska
+)
+
+m_alaska.drawcoastlines()
+m_alaska.drawcountries()
+m_alaska.drawstates()
+m_alaska.fillcontinents(color='lightgray', lake_color='white')
+
+df_alaska = df_sampled[(df_sampled["Latitude"] > 50) & (df_sampled["Longitude"] < -130)]
+df_alaska["x_alaska"], df_alaska["y_alaska"] = m_alaska(df_alaska["Longitude"].values, df_alaska["Latitude"].values)
+
+for charger, color in color_mapping.items():
+    subset_public = df_alaska[df_alaska["Charger Type"] == charger][df_alaska["Access Type"] == "Public"]
+    subset_private = df_alaska[df_alaska["Charger Type"] == charger][df_alaska["Access Type"] == "Private"]
+
+    ax_alaska.scatter(subset_public["x_alaska"], subset_public["y_alaska"], s=5, color=color, alpha=0.7, marker='o')
+    ax_alaska.scatter(subset_private["x_alaska"], subset_private["y_alaska"], s=10, color=color, alpha=0.7, marker='*')
+
+x_ak, y_ak = m_alaska(-152.0, 63.5)
+ax_alaska.text(x_ak, y_ak, "AK", fontsize=10, fontweight='bold', ha='center', va='center', color='black')
+
+m_hawaii = Basemap(
+    projection='merc',
+    llcrnrlat=18, urcrnrlat=22,
+    llcrnrlon=-161, urcrnrlon=-154,
+    resolution='l', ax=ax_hawaii
+)
+
+m_hawaii.drawcoastlines()
+m_hawaii.drawcountries()
+m_hawaii.drawstates()
+m_hawaii.fillcontinents(color='lightgray', lake_color='white')
+
+df_hawaii = df_sampled[(df_sampled["Latitude"] < 23) & (df_sampled["Longitude"] < -150)]
+df_hawaii["x_hawaii"], df_hawaii["y_hawaii"] = m_hawaii(df_hawaii["Longitude"].values, df_hawaii["Latitude"].values)
+
+for charger, color in color_mapping.items():
+    subset_public = df_hawaii[df_hawaii["Charger Type"] == charger][df_hawaii["Access Type"] == "Public"]
+    subset_private = df_hawaii[df_hawaii["Charger Type"] == charger][df_hawaii["Access Type"] == "Private"]
+
+    ax_hawaii.scatter(subset_public["x_hawaii"], subset_public["y_hawaii"], s=5, color=color, alpha=0.7, marker='o')
+    ax_hawaii.scatter(subset_private["x_hawaii"], subset_private["y_hawaii"], s=10, color=color, alpha=0.7, marker='*')
+
+x_hi, y_hi = m_hawaii(-157.5, 20)
+ax_hawaii.text(x_hi,y_hi, "HI", fontsize=10, fontweight='bold', ha='center', va='center', color='black')
+
+legend_ax = fig.add_axes([0.75, 0.13, 0.2, 0.2])
+legend_ax.axis("off")  
+
+legend_ax.text(0.1, 0.9, "Charger Type", fontsize=12, fontweight="bold")
+legend_ax.text(0.1, 0.75, "• Level 1 (Public)", fontsize=10, color="red")
+legend_ax.text(0.1, 0.65, "* Level 1 (Private)", fontsize=10, color="red")
+legend_ax.text(0.1, 0.50, "• Level 2 (Public)", fontsize=10, color="blue")
+legend_ax.text(0.1, 0.40, "* Level 2 (Private)", fontsize=10, color="blue")
+legend_ax.text(0.1, 0.25, "• DC Fast (Public)", fontsize=10, color="green")
+legend_ax.text(0.1, 0.15, "* DC Fast (Private)", fontsize=10, color="green")
+
+ax_main.set_title("EV Charging Stations in the USA with Standardized Alaska & Hawaii Placement", fontsize=14)
+plt.show()
+
+# Map With Types and Locations by Rocky
+
+df['Longitude'] = pd.to_numeric(df['Longitude'], errors='coerce')
+df_clean = df.dropna(subset=['Latitude', 'Longitude'])
+
+color_mapping = {
+    "Level 1": "red",
+    "Level 2": "blue",
+    "DC Fast": "green"
+}
+
+def classify_charger(row):
+    if row["EV DC Fast Count"] > 0:
+        return "DC Fast"
+    elif row["EV Level2 EVSE Num"] > 0:
+        return "Level 2"
+    elif row["EV Level1 EVSE Num"] > 0:
+        return "Level 1"
+    return "Unknown"
+
+df_clean["Charger Type"] = df_clean.apply(classify_charger, axis=1)
+df_clean["Access Type"] = df_clean["Groups With Access Code"].apply(lambda x: "Public" if x == "Public" else "Private")
+df_sampled = df_clean.sample(frac=0.1, random_state=42)
+
+fig, ax = plt.subplots(figsize=(12, 8))
+
+m = Basemap(
+    projection='merc',
+    llcrnrlat=24, urcrnrlat=50,
+    llcrnrlon=-125, urcrnrlon=-65,
+    resolution='l', ax=ax
+)
+
+m.drawcoastlines()
+m.drawcountries()
+m.drawstates()
+m.fillcontinents(color='lightgray', lake_color='white')
+
+df_sampled["x"], df_sampled["y"] = m(df_sampled["Longitude"].values, df_sampled["Latitude"].values)
+
+for charger, color in color_mapping.items():
+    subset_public = df_sampled[(df_sampled["Charger Type"] == charger) & (df_sampled["Access Type"] == "Public")]
+    subset_private = df_sampled[(df_sampled["Charger Type"] == charger) & (df_sampled["Access Type"] == "Private")]
+
+    ax.scatter(subset_public["x"], subset_public["y"], s=10, color=color, label=f"{charger} (Public)", alpha=0.7, marker='o')
+
+    ax.scatter(subset_private["x"], subset_private["y"], s=40, color=color, label=f"{charger} (Private)", alpha=0.7, marker='*')
+
+ax.set_title("EV Charging Stations in the USA by Charger Type & Access Type", fontsize=14)
+ax.legend(title="Charger Type & Access Type", loc="upper right", fontsize=10)
+
+plt.show()
