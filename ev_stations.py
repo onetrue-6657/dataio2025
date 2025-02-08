@@ -110,9 +110,55 @@ ev_network_map["EV Network"] = ev_network_map["EV Network"].apply(lambda x: x if
 
 x, y = USMap(ev_network_map["Longitude"].values, ev_network_map["Latitude"].values)
 colors = [network_colors[network] for network in ev_network_map["EV Network"].values]
-plt.scatter(x, y, marker="o", c=colors, alpha=0.5, s=10)
+plt.scatter(x, y, marker="o", c=colors, alpha=0.5, s=5)
 
 plt.legend(handles=[plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=color, markersize=4, label=name) 
                     for name, color in network_colors.items()], loc="lower left")
 
 plt.title("EV Network Distribution Across the U.S.")
+
+# State vs Owner Separately
+
+state_owner_data = df[['State', 'Owner Type Code']]
+state_owner_data = state_owner_data.dropna(subset=['Owner Type Code'])
+state_counts = df['State'].value_counts()
+
+valid_states = state_counts[state_counts > 10].index
+state_owner_filtered = state_owner_data[state_owner_data['State'].isin(valid_states)]
+
+state_owner_counts = state_owner_filtered.groupby(['State', 'Owner Type Code']).size().unstack(fill_value=0)
+state_owner_ratios = state_owner_counts.div(state_owner_counts.sum(axis=1), axis=0)
+
+state_owner_ratios.plot(kind='bar', stacked=True, figsize=(12, 8))
+plt.title("Owner Type Distribution by State")
+plt.xlabel("State")
+plt.ylabel("Percentage")
+plt.legend(title="Owner Type")
+plt.xticks(rotation=45)
+
+plt.show()
+
+# State vs Owner Public/Private/PPP
+
+state_owner_data = df[['State', 'Owner Type Code']]
+state_owner_data = state_owner_data.dropna(subset=['Owner Type Code'])
+state_counts = df['State'].value_counts()
+
+state_owner_data.loc[state_owner_data['Owner Type Code'].isin(['FG', 'SG', 'LG', 'T']), 'Owner Type Code'] = 'Public'
+state_owner_data.loc[state_owner_data['Owner Type Code'] == 'P', 'Owner Type Code'] = 'Private'
+state_owner_data.loc[state_owner_data['Owner Type Code'] == 'J', 'Owner Type Code'] = 'PPP'
+
+valid_states = state_counts[state_counts > 10].index
+state_owner_filtered = state_owner_data[state_owner_data['State'].isin(valid_states)]
+
+state_owner_counts = state_owner_filtered.groupby(['State', 'Owner Type Code']).size().unstack(fill_value=0)
+state_owner_ratios = state_owner_counts.div(state_owner_counts.sum(axis=1), axis=0)
+
+state_owner_ratios.plot(kind='bar', stacked=True, figsize=(12, 8))
+plt.title("Owner Type Distribution by State")
+plt.xlabel("State")
+plt.ylabel("Percentage")
+plt.legend(title="Owner Type")
+plt.xticks(rotation=45)
+
+plt.show()
