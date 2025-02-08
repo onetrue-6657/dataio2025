@@ -14,6 +14,8 @@ import matplotlib
 import streamlit as st
 import matplotlib.pyplot as plt
 import wget
+import matplotlib.colors as mcolors
+import geopandas as gpd
 import folium
 from mpl_toolkits.basemap import Basemap
 
@@ -328,6 +330,170 @@ fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
 plt.show()
 
 # Data comes from https://afdc.energy.gov/data/10962
+
+# CA EV Stations Distribution by Counties
+
+ca_zip_to_county_with_county = {
+    "900": "Los Angeles County",
+    "901": "Los Angeles County",
+    "902": "Los Angeles County",
+    "903": "Los Angeles County",
+    "904": "Los Angeles County",
+    "905": "Los Angeles County",
+    "906": "Los Angeles County",
+    "907": "Los Angeles County",
+    "908": "Los Angeles County",
+    "909": "San Bernardino County",
+    "910": "Los Angeles County",
+    "911": "Los Angeles County",
+    "912": "Los Angeles County",
+    "913": "Los Angeles County",
+    "914": "Los Angeles County",
+    "915": "Los Angeles County",
+    "916": "Los Angeles County",
+    "917": "San Bernardino County",
+    "918": "Los Angeles County",
+    "919": "San Diego County",
+    "920": "San Diego County",
+    "921": "San Diego County",
+    "922": "Riverside County",
+    "923": "San Bernardino County",
+    "924": "San Bernardino County",
+    "925": "Riverside County",
+    "926": "Orange County",
+    "927": "Orange County",
+    "928": "Orange County",
+    "930": "Ventura County",
+    "931": "Santa Barbara County",
+    "932": "Tulare County",
+    "933": "Kern County",
+    "934": "San Luis Obispo County",
+    "935": "Los Angeles County",
+    "936": "Fresno County",
+    "937": "Fresno County",
+    "938": "Fresno County",
+    "939": "Monterey County",
+    "940": "San Mateo County",
+    "941": "San Francisco County",
+    "942": "Sacramento County",
+    "943": "Santa Clara County",
+    "944": "San Mateo County",
+    "945": "Alameda County",
+    "946": "Alameda County",
+    "947": "Alameda County",
+    "948": "Contra Costa County",
+    "949": "Marin County",
+    "950": "Santa Clara County",
+    "951": "Santa Clara County",
+    "952": "San Joaquin County",
+    "953": "Stanislaus County",
+    "954": "Sonoma County",
+    "955": "Humboldt County",
+    "956": "Sacramento County",
+    "957": "Sacramento County",
+    "958": "Sacramento County",
+    "959": "Butte County",
+    "960": "Shasta County",
+    "961": "Placer County"
+}
+
+ca_zip_to_county = {
+    "900": "Los Angeles",
+    "901": "Los Angeles",
+    "902": "Los Angeles",
+    "903": "Los Angeles",
+    "904": "Los Angeles",
+    "905": "Los Angeles",
+    "906": "Los Angeles",
+    "907": "Los Angeles",
+    "908": "Los Angeles",
+    "909": "San Bernardino",
+    "910": "Los Angeles",
+    "911": "Los Angeles",
+    "912": "Los Angeles",
+    "913": "Los Angeles",
+    "914": "Los Angeles",
+    "915": "Los Angeles",
+    "916": "Los Angeles",
+    "917": "San Bernardino",
+    "918": "Los Angeles",
+    "919": "San Diego",
+    "920": "San Diego",
+    "921": "San Diego",
+    "922": "Riverside",
+    "923": "San Bernardino",
+    "924": "San Bernardino",
+    "925": "Riverside",
+    "926": "Orange",
+    "927": "Orange",
+    "928": "Orange",
+    "930": "Ventura",
+    "931": "Santa Barbara",
+    "932": "Tulare",
+    "933": "Kern",
+    "934": "San Luis Obispo",
+    "935": "Los Angeles",
+    "936": "Fresno",
+    "937": "Fresno",
+    "938": "Fresno",
+    "939": "Monterey",
+    "940": "San Mateo",
+    "941": "San Francisco",
+    "942": "Sacramento",
+    "943": "Santa Clara",
+    "944": "San Mateo",
+    "945": "Alameda",
+    "946": "Alameda",
+    "947": "Alameda",
+    "948": "Contra Costa",
+    "949": "Marin",
+    "950": "Santa Clara",
+    "951": "Santa Clara",
+    "952": "San Joaquin",
+    "953": "Stanislaus",
+    "954": "Sonoma",
+    "955": "Humboldt",
+    "956": "Sacramento",
+    "957": "Sacramento",
+    "958": "Sacramento",
+    "959": "Butte",
+    "960": "Shasta",
+    "961": "Placer"
+}
+
+ca_zip_codes = df[df["State"] == "CA"]["ZIP"].astype(str)
+ca_zip_codes_prefix = ca_zip_codes.str[:3]
+df.loc[df["State"] == "CA", "County"] = ca_zip_codes_prefix.map(ca_zip_to_county)
+county_station_counts = df[df["State"] == "CA"]["County"].value_counts().sort_values(ascending=False)
+
+plt.figure(figsize=(12, 6))
+plt.bar(county_station_counts.index, county_station_counts.values, color="#BA0C2F")
+plt.xlabel("County")
+plt.ylabel("Number of Charging Stations")
+plt.title("EV Charging Stations Distribution by County in California")
+plt.xticks(rotation=90)
+plt.grid(axis="y", linestyle="--", alpha=0.7)
+
+plt.show()
+
+# California County Distribution Map
+
+california_map = gpd.read_file("california-counties.geojson")
+
+county_station_counts = df[df["State"] == "CA"]["County"].value_counts().reset_index()
+county_station_counts.columns = ["County", "Charging_Stations"]
+
+all_counties = pd.DataFrame({"County": california_map["name"]})
+county_station_counts = all_counties.merge(county_station_counts, on="County", how="left").fillna(0)
+
+california_map = california_map.merge(county_station_counts, left_on="name", right_on="County", how="left")
+
+fig, ax = plt.subplots(figsize=(10, 10))
+california_map.plot(column="Charging_Stations", cmap="OrRd", linewidth=0.8, edgecolor="black", legend=True, ax=ax)
+plt.title("EV Charging Stations Density by County in California")
+plt.axis("off")
+
+plt.show()
 
 # Station Level vs Build Year By Ken Ning
 
