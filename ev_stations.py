@@ -30,6 +30,7 @@ plt.xlabel("State")
 plt.ylabel("Number of Stations")
 plt.title("Number of Stations by State")
 plt.grid(axis="y", linestyle="--", alpha=0.7)
+plt.xticks(rotation=90)
 plt.show()
 
 # Bar plot of number of stations by city
