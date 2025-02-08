@@ -162,3 +162,30 @@ plt.legend(title="Owner Type")
 plt.xticks(rotation=45)
 
 plt.show()
+
+# State vs Owner Public/Private/PPP Sorted
+
+state_owner_data = df[['State', 'Owner Type Code']]
+state_owner_data = state_owner_data.dropna(subset=['Owner Type Code'])
+state_counts = df['State'].value_counts()
+
+state_owner_data.loc[state_owner_data['Owner Type Code'].isin(['FG', 'SG', 'LG', 'T']), 'Owner Type Code'] = 'Public'
+state_owner_data.loc[state_owner_data['Owner Type Code'] == 'P', 'Owner Type Code'] = 'Private'
+state_owner_data.loc[state_owner_data['Owner Type Code'] == 'J', 'Owner Type Code'] = 'PPP'
+
+valid_states = state_counts[state_counts > 10].index
+state_owner_filtered = state_owner_data[state_owner_data['State'].isin(valid_states)]
+
+state_owner_counts = state_owner_filtered.groupby(['State', 'Owner Type Code']).size().unstack(fill_value=0)
+state_owner_ratios = state_owner_counts.div(state_owner_counts.sum(axis=1), axis=0)
+
+state_owner_ratios = state_owner_ratios.sort_values(by='Public', ascending=False)
+
+state_owner_ratios.plot(kind='bar', stacked=True, figsize=(12, 8))
+plt.title("Owner Type Distribution by State")
+plt.xlabel("State")
+plt.ylabel("Percentage")
+plt.legend(title="Owner Type")
+plt.xticks(rotation=45)
+
+plt.show()
