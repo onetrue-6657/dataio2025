@@ -234,3 +234,89 @@ plt.xticks(rotation=45)
 plt.grid(True)
 
 plt.show()
+
+# Number of Stations vs Number of EV Registrations by State
+
+ev_registration_by_state = {
+    "AL": 13047, "AK": 2697, "AZ": 89798, "AR": 7108, "CA": 1256646,
+    "CO": 90083, "CT": 31557, "DL": 8435, "DC": 8066, "FL": 254878,
+    "GA": 92368, "HI": 25565, "ID": 8501, "IL": 99573, "IN": 26101,
+    "IO": 9031, "KS": 11271, "KT": 11617, "LA": 8150, "ME": 7377,
+    "MD": 72139, "MA": 73768, "MI": 50284, "MN": 37050, "MS": 3590,
+    "MO": 26861, "MT": 4608, "NE": 6920, "NV": 47361, "NH": 9861,
+    "NJ": 134753, "NM": 10276, "NY": 131250, "NC": 70164, "ND": 959,
+    "OH": 50393, "OK": 22843, "OR": 64361, "PA": 70154, "RI": 6396,
+    "SC": 20873, "SD": 1675, "TN": 33221, "TX": 230125, "UT": 39998,
+    "VT": 7816, "VA": 84936, "WA": 152101, "WV": 2758, "WI": 24943, "WY": 1139
+}
+
+state_charging_counts = df["State"].value_counts()
+charging_stations_df = pd.DataFrame({"State": state_charging_counts.index, "Charging_Stations": state_charging_counts.values})
+ev_counts_df = pd.DataFrame(list(ev_registration_by_state.items()), columns=["State", "EV_Count"])
+merged_df = pd.merge(ev_counts_df, charging_stations_df, on="State", how="inner")
+
+merged_df["EV/Charging Ratio"] = merged_df["EV_Count"] / merged_df["Charging_Stations"]
+
+fig, ax1 = plt.subplots(figsize=(15, 6))
+
+ax1.bar(merged_df["State"], np.log1p(merged_df["EV_Count"]), color='b', alpha=0.6, label="EV Count (log)")
+ax1.set_xlabel("State")
+ax1.set_ylabel("Log(Number of EVs)", color='b')
+ax1.tick_params(axis='y', labelcolor='b')
+
+ax2 = ax1.twinx()
+ax2.bar(merged_df["State"], merged_df["Charging_Stations"], color='#BA0C2F', alpha=0.4, label="Charging Stations")
+ax2.set_ylabel("Number of Charging Stations", color='#BA0C2F')
+ax2.tick_params(axis='y', labelcolor='#BA0C2F')
+
+plt.xticks(rotation=90)
+
+plt.title("Comparison of EV Counts and Charging Stations by State (Log Scale)")
+
+fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
+
+plt.show()
+
+# Number of Stations vs Number of EV Registrations by State Excluding California
+
+ev_registration_by_state = {
+    "AL": 13047, "AK": 2697, "AZ": 89798, "AR": 7108, 
+    "CO": 90083, "CT": 31557, "DL": 8435, "DC": 8066, "FL": 254878,
+    "GA": 92368, "HI": 25565, "ID": 8501, "IL": 99573, "IN": 26101,
+    "IO": 9031, "KS": 11271, "KT": 11617, "LA": 8150, "ME": 7377,
+    "MD": 72139, "MA": 73768, "MI": 50284, "MN": 37050, "MS": 3590,
+    "MO": 26861, "MT": 4608, "NE": 6920, "NV": 47361, "NH": 9861,
+    "NJ": 134753, "NM": 10276, "NY": 131250, "NC": 70164, "ND": 959,
+    "OH": 50393, "OK": 22843, "OR": 64361, "PA": 70154, "RI": 6396,
+    "SC": 20873, "SD": 1675, "TN": 33221, "TX": 230125, "UT": 39998,
+    "VT": 7816, "VA": 84936, "WA": 152101, "WV": 2758, "WI": 24943, "WY": 1139
+}
+
+state_charging_counts = df["State"].value_counts()
+charging_stations_df = pd.DataFrame({"State": state_charging_counts.index, "Charging_Stations": state_charging_counts.values})
+ev_counts_df = pd.DataFrame(list(ev_registration_by_state.items()), columns=["State", "EV_Count"])
+merged_df = pd.merge(ev_counts_df, charging_stations_df, on="State", how="inner")
+
+merged_df["EV/Charging Ratio"] = merged_df["EV_Count"] / merged_df["Charging_Stations"]
+
+fig, ax1 = plt.subplots(figsize=(15, 6))
+
+ax1.bar(merged_df["State"], np.log1p(merged_df["EV_Count"]), color='b', alpha=0.6, label="EV Count (log)")
+ax1.set_xlabel("State")
+ax1.set_ylabel("Log(Number of EVs)", color='b')
+ax1.tick_params(axis='y', labelcolor='b')
+
+ax2 = ax1.twinx()
+ax2.bar(merged_df["State"], merged_df["Charging_Stations"], color='#BA0C2F', alpha=0.4, label="Charging Stations")
+ax2.set_ylabel("Number of Charging Stations", color='#BA0C2F')
+ax2.tick_params(axis='y', labelcolor='#BA0C2F')
+
+plt.xticks(rotation=90)
+
+plt.title("Comparison of EV Counts and Charging Stations by State Excluding CA (Log Scale)")
+
+fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
+
+plt.show()
+
+# Data comes from https://afdc.energy.gov/data/10962
