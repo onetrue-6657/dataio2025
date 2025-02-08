@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
-import seaborn as sn
+import seaborn as sns
 import matplotlib
 import matplotlib.pyplot as plt
 import wget
+import folium
 from mpl_toolkits.basemap import Basemap
 
 df = pd.read_csv('ev_stations_v1.csv')
@@ -75,3 +76,43 @@ plt.figure(figsize=(8, 8))
 plt.pie(new_facility_type_sizes, labels=new_facility_type_labels, autopct='%1.1f%%', startangle=140, wedgeprops={'edgecolor': 'black'})
 plt.title("Facility Type Distribution")
 plt.show()
+
+network_state_counts = df.groupby("State")["EV Network"].value_counts().unstack().fillna(0)
+
+# plt.figure(figsize=(12, 8))
+# sns.heatmap(network_state_counts, cmap="Blues", annot=False)
+# plt.xlabel("EV Network")
+# plt.ylabel("State")
+# plt.title("EV Network Distribution by State")
+# plt.show()
+
+# EV Network Distribution Across the U.S. Map
+
+ev_network_map = df[df["EV Network"] != "Non-Networked"]
+ev_network_map = df.dropna(subset=["Latitude", "Longitude", "EV Network"])
+
+plt.figure(figsize=(12, 8))
+USMap = Basemap(projection="merc", llcrnrlat=24, urcrnrlat=50, llcrnrlon=-125, urcrnrlon=-66, resolution="l")
+USMap.drawcoastlines()
+USMap.drawcountries()
+USMap.drawstates()
+USMap.fillcontinents(color="#666666", lake_color="lightblue")
+USMap.drawmapboundary(fill_color="lightblue") # Map without Alaska and Hawaii :(
+    
+network_colors = {
+    "Tesla": "red",
+    "ChargePoint": "blue",
+    "Blink": "green",
+    "EVgo": "purple",
+    "Other": "black"
+}
+ev_network_map["EV Network"] = ev_network_map["EV Network"].apply(lambda x: x if x in network_colors else "Other")
+
+x, y = USMap(ev_network_map["Longitude"].values, ev_network_map["Latitude"].values)
+colors = [network_colors[network] for network in ev_network_map["EV Network"].values]
+plt.scatter(x, y, marker="o", c=colors, alpha=0.5, s=10)
+
+plt.legend(handles=[plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=color, markersize=4, label=name) 
+                    for name, color in network_colors.items()], loc="lower left")
+
+plt.title("EV Network Distribution Across the U.S.")
