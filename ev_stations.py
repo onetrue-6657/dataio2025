@@ -55,9 +55,23 @@ USMap.drawmapboundary(fill_color="lightblue") # Map without Alaska and Hawaii :(
     
 # OSU Scarlet Code: #BA0C2F
 
-# California Data
-# Groups with Access Code - State
-# Access Days Time
-# EV Level2 EVSE Num
-# EV Network vs. State
-# Owner Type Code
+# Show Facility Type Distribution Pie Chart
+facility_type = df['Facility Type'].value_counts()
+facility_type_labels = facility_type.index.to_list()
+facility_type_sizes = facility_type.values.tolist()
+threshold = 0.02 * sum(facility_type_sizes)
+new_facility_type_labels = []
+new_facility_type_sizes = []
+other_total = 0
+for label, size in zip(facility_type_labels, facility_type_sizes):
+    if size < threshold:
+        other_total += size
+    else:
+        new_facility_type_labels.append(label)
+        new_facility_type_sizes.append(size)
+new_facility_type_labels.append("Other")
+new_facility_type_sizes.append(other_total)
+plt.figure(figsize=(8, 8))
+plt.pie(new_facility_type_sizes, labels=new_facility_type_labels, autopct='%1.1f%%', startangle=140, wedgeprops={'edgecolor': 'black'})
+plt.title("Facility Type Distribution")
+plt.show()
